@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -78,6 +79,95 @@ class CartServiceImplTest {
         CartItemRequest req = new CartItemRequest(10L, 0);
 
         assertThrows(BadRequestException.class, () -> cartService.addToCart(req));
+    }
+
+    // updateQuantity
+
+    @Test
+    void updateQuantity_success() {
+        CartItem item = new CartItem(10L, 3);
+
+        when(cartItemRepository.findByProductId(10L)).thenReturn(Optional.of(item));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(sampleProduct));
+
+        CartItemResponse resp = cartService.updateQuantity(10L, 5);
+
+        assertEquals(5, resp.getQuantity());
+        verify(cartItemRepository).save(item);
+    }
+
+    @Test
+    void updateQuantity_productNotInCart_throwsException() {
+        when(cartItemRepository.findByProductId(10L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> cartService.updateQuantity(10L, 5));
+    }
+
+    @Test
+    void updateQuantity_invalidQuantity_throwsException() {
+        assertThrows(BadRequestException.class,
+                () -> cartService.updateQuantity(10L, 0));
+    }
+
+    @Test
+    void updateQuantity_productNotFoundLater_throwsException() {
+        CartItem item = new CartItem(10L, 2);
+
+        when(cartItemRepository.findByProductId(10L)).thenReturn(Optional.of(item));
+        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class,
+                () -> cartService.updateQuantity(10L, 5));
+    }
+
+    // removeFromCart
+
+    @Test
+    void removeFromCart_success() {
+        when(cartItemRepository.existsByProductId(10L)).thenReturn(true);
+
+        cartService.removeFromCart(10L);
+
+        verify(cartItemRepository).deleteByProductId(10L);
+    }
+
+    @Test
+    void removeFromCart_itemNotFound_throwsException() {
+        when(cartItemRepository.existsByProductId(10L)).thenReturn(false);
+
+        assertThrows(NotFoundException.class, () -> cartService.removeFromCart(10L));
+    }
+
+    // listCartItems
+
+    @Test
+    void listCartItems_returnsPopulatedList() {
+        CartItem item1 = new CartItem(10L, 5);
+        CartItem item2 = new CartItem(20L, 2);
+
+        Product product1 = new Product(10L, "Mouse", BigDecimal.valueOf(20));
+        Product product2 = new Product(20L, "Keyboard", BigDecimal.valueOf(40));
+
+        when(cartItemRepository.findAll()).thenReturn(List.of(item1, item2));
+        when(productRepository.findById(10L)).thenReturn(Optional.of(product1));
+        when(productRepository.findById(20L)).thenReturn(Optional.of(product2));
+
+        List<CartItemResponse> list = cartService.listCartItems();
+
+        assertEquals(2, list.size());
+        assertEquals("Mouse", list.get(0).getProductName());
+        assertEquals("Keyboard", list.get(1).getProductName());
+    }
+
+    @Test
+    void listCartItems_missingProductInDB_throwsException() {
+        CartItem item1 = new CartItem(10L, 5);
+
+        when(cartItemRepository.findAll()).thenReturn(List.of(item1));
+        when(productRepository.findById(10L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> cartService.listCartItems());
     }
 
 }

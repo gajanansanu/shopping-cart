@@ -22,11 +22,32 @@ public class CartController {
         this.cartService = cartService;
     }
 
+    @Operation(summary = "List items in cart")
+    @GetMapping
+    public ResponseEntity<List<CartItemResponse>> list() {
+        return ResponseEntity.ok(cartService.listCartItems());
+    }
+
     @Operation(summary = "Add product to cart")
     @PostMapping
     public ResponseEntity<CartItemResponse> add(@Valid @RequestBody CartItemRequest request) {
         CartItemResponse resp = cartService.addToCart(request);
         return ResponseEntity.created(URI.create("/api/cart/items/" + resp.getProductId())).body(resp);
+    }
+
+    @Operation(summary = "Update product in the cart")
+    @PutMapping("/{productId}")
+    public ResponseEntity<CartItemResponse> update(@PathVariable Long productId,
+                                                   @Valid @RequestBody QuantityUpdateRequest request) {
+        CartItemResponse resp = cartService.updateQuantity(productId, request.getQuantity());
+        return ResponseEntity.ok(resp);
+    }
+
+    @Operation(summary = "Remove product from cart")
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> remove(@PathVariable Long productId) {
+        cartService.removeFromCart(productId);
+        return ResponseEntity.noContent().build();
     }
 
 }
